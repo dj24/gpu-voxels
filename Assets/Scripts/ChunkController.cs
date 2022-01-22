@@ -25,6 +25,9 @@ public class ChunkController : MonoBehaviour
 
     public void GenerateMesh()
     {
+        if(texture == null){
+            return;
+        }
         var width = texture.width;
         var height = texture.height;
         var depth = texture.volumeDepth;
