@@ -1,0 +1,63 @@
+#pragma kernel CSMain
+
+Texture3D<float4> inputTexture;
+AppendStructuredBuffer<uint4> faces;
+uint3 dimensions;
+
+uint3 GetNormal(uint faceIndex){
+    switch(faceIndex){
+        case 0:
+        {
+            return uint3(0,1,0); // up
+            break;
+        }
+        case 1:
+        {
+            return uint3(0,-1,0); // down
+            break;
+        }
+        case 2:
+        {
+            return uint3(1,0,0); //right
+            break;
+        }
+        case 3:
+        {
+            return uint3(-1,0,0); // left
+            break;
+        }
+        case 4:
+        {
+            return uint3(0,0,1); // forward
+            break;
+        }
+        case 5:
+        {
+            return uint3(0,0,-1); // forward
+            break;
+        }
+    }
+}
+
+[numthreads(6,1,1)]
+void CSMain (uint3 voxelPosition : SV_GroupID, uint faceIndex : SV_GroupThreadID){
+    // Create and configure noise state
+    uint3 normal = GetNormal(faceIndex);
+
+    uint4 face = uint4( voxelPosition.x, voxelPosition.y, voxelPosition.z, faceIndex );
+    bool isEdge = voxelPosition.x == 0 && faceIndex == 3 ||
+        voxelPosition.z == 0 && faceIndex == 5 ||
+        voxelPosition.y == 0 && faceIndex == 1 ||
+        voxelPosition.y == dimensions.y - 1 && faceIndex == 0 ||
+        voxelPosition.x == dimensions.x - 1 && faceIndex == 2 ||
+        voxelPosition.z == dimensions.z - 1 && faceIndex == 4;
+    if(isEdge && inputTexture[voxelPosition].w > 0){
+        faces.Append(face);
+        return;
+    }
+    else if(isEdge){
+        return;
+    } else if(inputTexture[voxelPosition + normal].w <= 0 && inputTexture[voxelPosition].w > 0){
+        faces.Append(face);
+    }
+}

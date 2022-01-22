@@ -1,0 +1,16 @@
+#pragma kernel CSMain
+#include "FastNoiseLite.hlsl"
+
+RWTexture3D<float4> outputTexture;
+float4 offset;
+
+[numthreads(1,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID){
+    // Create and configure noise state
+    fnl_state noise = fnlCreateState();
+    noise.frequency = 0.01f;
+    noise.noise_type = FNL_NOISE_OPENSIMPLEX2;
+    float noiseValue = fnlGetNoise3D(noise, id.x + offset.x, id.y + offset.y, id.z + offset.z);
+    // outputTexture[id] = float4(noiseValue, 0, 1 - noiseValue * 0.5, noiseValue);
+    outputTexture[id] = float4(1,0,1,noiseValue);
+}
