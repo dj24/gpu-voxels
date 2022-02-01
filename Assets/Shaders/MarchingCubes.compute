@@ -1,0 +1,35 @@
+#pragma kernel CSMain
+#include "MarchedTriangle.hlsl"
+
+RWStructuredBuffer<float3> vertexBuffer;
+RWStructuredBuffer<float3> normalBuffer;
+RWStructuredBuffer<float3> colourBuffer;
+RWStructuredBuffer<uint> indexBuffer;
+ConsumeStructuredBuffer<MarchedTriangle> triBuffer;
+
+Texture3D<float4> inputTexture;
+
+[numthreads(1,1,1)]
+void CSMain (uint id : SV_DispatchThreadID){
+    int id1 = id * 3;
+    int id2 = id * 3 + 1;
+    int id3 = id * 3 + 2;
+
+    MarchedTriangle tri = triBuffer.Consume();
+
+    vertexBuffer[id1] = tri.vertices[0];
+    vertexBuffer[id2] = tri.vertices[1];
+    vertexBuffer[id3] = tri.vertices[2];
+
+    normalBuffer[id1] = tri.normal;
+    normalBuffer[id2] = tri.normal;
+    normalBuffer[id3] = tri.normal;
+
+    colourBuffer[id1] = tri.colour;
+    colourBuffer[id2] = tri.colour;
+    colourBuffer[id3] = tri.colour;
+
+    indexBuffer[id1] = id1;
+    indexBuffer[id2] = id2;
+    indexBuffer[id3] = id3;
+}

@@ -15,23 +15,22 @@ public class VolumeTextureEditor : Editor
         DrawDefaultInspector ();
         if(GUILayout.Button("Generate"))
         {
-            ((VolumeTextureController)target).GenerateTexture();
+            ((VolumeTextureController)target).GenerateMesh();
         }
     }
 }
 
-public class VolumeTextureController : MonoBehaviour
+public class VolumeTextureController : VoxelMeshController
 {
     public Texture3D texture;
-    public void GenerateTexture(bool save = false){
-        var rt = new RenderTexture(texture.width, texture.height, 0, RenderTextureFormat.ARGB32){
+    public void GenerateMesh(){
+        renderTexture = new RenderTexture(texture.width, texture.height, 0, RenderTextureFormat.ARGB32){
             enableRandomWrite = true,
             dimension = TextureDimension.Tex3D,
             volumeDepth = texture.depth
         };
-        rt.Create();
-        Graphics.CopyTexture(texture,rt);
-        GetComponent<ChunkController>().texture = rt;
-        GetComponent<ChunkController>().GenerateMesh();
+        renderTexture.Create();
+        Graphics.CopyTexture(texture,renderTexture);
+        base.GenerateMesh();
     }
 }

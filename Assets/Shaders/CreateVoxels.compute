@@ -1,19 +1,12 @@
 #pragma kernel CSMain
 
-// RWByteAddressBuffer vertexBuffer;
 RWStructuredBuffer<float3> vertexBuffer;
-RWByteAddressBuffer normalBuffer;
-RWByteAddressBuffer colourBuffer;
-RWByteAddressBuffer indexBuffer;
+RWStructuredBuffer<float3> normalBuffer;
+RWStructuredBuffer<float3> colourBuffer;
+RWStructuredBuffer<uint> indexBuffer;
 ConsumeStructuredBuffer<uint4> faceBuffer;
 
 Texture3D<float4> inputTexture;
-
-void Store(RWByteAddressBuffer buf, int index, float3 v)
-{
-    uint3 data = asuint(v);
-    buf.Store3((index * 3)<<2, data);
-}
 
 uint GetVertexIndex(uint vIndex, uint tri){
     uint2x3 indices = {
@@ -24,39 +17,15 @@ uint GetVertexIndex(uint vIndex, uint tri){
 }
 
 float3 GetNormal(uint faceIndex){
-    switch(faceIndex){
-        case 0:
-        {
-            return float3(0,1,0); // up
-            break;
-        }
-        case 1:
-        {
-            return float3(0,-1,0); // down
-            break;
-        }
-        case 2:
-        {
-            return float3(1,0,0); //right
-            break;
-        }
-        case 3:
-        {
-            return float3(-1,0,0); // left
-            break;
-        }
-        case 4:
-        {
-            return float3(0,0,1); // forward
-            break;
-        }
-        case 5:
-        {
-            return float3(0,0,-1); // back
-            break;
-        }
-    }
-    return float3(0,0,0);
+    float3 normals[6] = {
+        float3(0,1,0),
+        float3(0,-1,0),
+        float3(1,0,0),
+        float3(-1,0,0),
+        float3(0,0,1),
+        float3(0,0,-1)
+    };
+    return normals[faceIndex];
 }
 
 float4x3 GetVertices(uint faceIndex){
@@ -120,14 +89,10 @@ float4x3 GetVertices(uint faceIndex){
 }
 
 [numthreads(1,1,1)] // 2 tris per face, 6 faces per voxel
-void CSMain (uint id : SV_DispatchThreadID){
+void CSMain (uint id : SV_DispatchThreadID, uint trIndex : SV_GroupThreadID){
     uint4 face = faceBuffer.Consume();
     uint3 voxelPosition = face.xyz;
     uint faceIndex = face.w;
-
-    // if(inputTexture[voxelPosition].w <= 0){
-    //     return;
-    // }
 
     for(uint triIndex = 0; triIndex < 2; triIndex++){
         int id1 = id * 6;
@@ -138,7 +103,6 @@ void CSMain (uint id : SV_DispatchThreadID){
         id2 += triIndex * 3;
         id3 += triIndex * 3;
 
-        // Debug Colours
         float3 c = inputTexture[voxelPosition].xyz;
 
         // Get vertices based on face directions
@@ -149,23 +113,20 @@ void CSMain (uint id : SV_DispatchThreadID){
         float3 v2 = voxelPosition + vertices[GetVertexIndex(1, triIndex)];
         float3 v3 = voxelPosition + vertices[GetVertexIndex(2, triIndex)];
 
-        // Store(vertexBuffer, id1, v1);
-        // Store(vertexBuffer, id2, v2);
-        // Store(vertexBuffer, id3, v3);
         vertexBuffer[id1] = v1;
         vertexBuffer[id2] = v2;
         vertexBuffer[id3] = v3;
-        
-        Store(normalBuffer, id1, n);
-        Store(normalBuffer, id2, n);
-        Store(normalBuffer, id3, n);
 
-        Store(colourBuffer, id1, c);
-        Store(colourBuffer, id2, c);
-        Store(colourBuffer, id3, c);
+        normalBuffer[id1] = n;
+        normalBuffer[id2] = n;
+        normalBuffer[id3] = n;
 
-        indexBuffer.Store((id1)<<2, id1);
-        indexBuffer.Store((id2)<<2, id2);
-        indexBuffer.Store((id3)<<2, id3);
+        colourBuffer[id1] = c;
+        colourBuffer[id2] = c;
+        colourBuffer[id3] = c;
+
+        indexBuffer[id1] = id1;
+        indexBuffer[id2] = id2;
+        indexBuffer[id3] = id3;
     }
 }

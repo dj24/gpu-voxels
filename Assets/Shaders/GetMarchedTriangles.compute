@@ -1,0 +1,77 @@
+#pragma kernel March
+#include "MarchedTriangle.hlsl"
+
+Texture3D<float4> inputTexture;
+AppendStructuredBuffer<MarchedTriangle> triangleBuffer;
+uint3 dimensions;
+
+bool VoxelExists(int3 position){
+    int3 offsetPosition = int3(position.x - 1, position.y - 1, position.z - 1);
+    return inputTexture[offsetPosition].w > 0;
+}
+
+
+float3 GetNormal(float3x3 vertices){
+    float3 u = vertices[1] - vertices[0];
+    float3 v = vertices[2] - vertices[1];
+    float3 normal;
+    normal.x = (u.y * v.z) - (u.z * v.y);
+    normal.y = (u.z * v.x) - (u.x * v.z);
+    normal.z = (u.x * v.y) - (u.y * v.x);
+    return normal;
+}
+
+[numthreads(1,1,1)]
+void March (uint3 id : SV_DispatchThreadID)
+{   
+    // uint3 c1 = uint3(id.x, id.y, id.z);
+    // uint3 c2 = uint3(id.x + 1, id.y, id.z);
+    // uint3 c3 = uint3(id.x + 1, id.y + 1, id.z);
+    // uint3 c4 = uint3(id.x, id.y + 1, id.z);
+    // uint3 c5 = uint3(id.x, id.y, id.z + 1);
+    // uint3 c6 = uint3(id.x + 1, id.y, id.z + 1);
+    // uint3 c7 = uint3(id.x + 1, id.y + 1, id.z + 1);
+    // uint3 c8 = uint3(id.x, id.y + 1, id.z + 1);
+    uint3 c1 = uint3(id.x, id.y, id.z);
+    uint3 c2 = uint3(id.x + 1, id.y, id.z);
+    uint3 c3 = uint3(id.x + 1, id.y + 1, id.z);
+    uint3 c4 = uint3(id.x, id.y + 1, id.z);
+    uint3 c5 = uint3(id.x, id.y, id.z + 1);
+    uint3 c6 = uint3(id.x + 1, id.y, id.z + 1);
+    uint3 c7 = uint3(id.x + 1, id.y + 1, id.z + 1);
+    uint3 c8 = uint3(id.x, id.y + 1, id.z + 1);
+
+    int cubeIndex = 0;
+    if (!VoxelExists(c1)) cubeIndex |= 1;
+    if (!VoxelExists(c2)) cubeIndex |= 2;
+    if (!VoxelExists(c3)) cubeIndex |= 4;
+    if (!VoxelExists(c4)) cubeIndex |= 8;
+    if (!VoxelExists(c5)) cubeIndex |= 16;
+    if (!VoxelExists(c6)) cubeIndex |= 32;
+    if (!VoxelExists(c7)) cubeIndex |= 64;
+    if (!VoxelExists(c8)) cubeIndex |= 128;
+
+    for (int i = 0; triangulation[cubeIndex][i] != -1; i +=3) {
+        MarchedTriangle tri;
+        int2 e1 = edgeCorners[triangulation[cubeIndex][i]];
+        int2 e2 = edgeCorners[triangulation[cubeIndex][i + 1]];
+        int2 e3 = edgeCorners[triangulation[cubeIndex][i + 2]];
+        float3 p1 = (cornerPoints[e1.x] + cornerPoints[e1.y]) * 0.5;
+        float3 p2 = (cornerPoints[e2.x] + cornerPoints[e2.y]) * 0.5;
+        float3 p3 = (cornerPoints[e3.x] + cornerPoints[e3.y]) * 0.5;
+        float3x3 vertices = {
+            id + p1 - 0.5,
+            id + p2 - 0.5,
+            id + p3 - 0.5
+        };
+        tri.vertices = vertices;
+        uint3 n = GetNormal(vertices);
+        tri.normal = n;
+        uint3 offset = uint3(id.x - 1, id.y - 1, id.z - 1);
+        float4 c = inputTexture[id];
+        tri.colour = c.xyz;
+        // tri.colour = float3(1,1,1);
+        triangleBuffer.Append(tri);
+    }
+}
+
